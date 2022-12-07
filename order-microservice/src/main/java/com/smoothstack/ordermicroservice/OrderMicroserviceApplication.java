@@ -11,7 +11,7 @@ import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 @ComponentScan("com.smoothstack")
 @EnableJpaRepositories("com.smoothstack")
 @SpringBootApplication()
-@EnableEurekaClient
+//@EnableEurekaClient
 public class OrderMicroserviceApplication {
 
 	public static void main(String[] args) {

@@ -15,6 +15,8 @@ public class NewOrderItem {
 
     private String notes;
 
+    private String name;
+
     private Double discount;
 
     private Double price;

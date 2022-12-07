@@ -2,9 +2,12 @@ package com.smoothstack.ordermicroservice.data;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.smoothstack.common.models.Discount;
 
+import com.smoothstack.common.models.Location;
+import com.smoothstack.common.models.Order;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -47,5 +50,6 @@ public class OrderInformation {
     private List<Discount> discounts;
 
     private List<FrontEndOrderItem> items;
-    
+
+    private Location customerLocation;
 }

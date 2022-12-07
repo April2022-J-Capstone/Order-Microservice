@@ -3,24 +3,21 @@ package com.smoothstack.ordermicroservice.controller;
 import java.util.List;
 
 import com.smoothstack.common.exceptions.*;
+import com.smoothstack.common.models.Order;
+import com.smoothstack.common.models.StateRate;
 import com.smoothstack.ordermicroservice.data.NewOrder;
 import com.smoothstack.ordermicroservice.data.OrderInformation;
+import com.smoothstack.ordermicroservice.data.RestaurantOrder;
 import com.smoothstack.ordermicroservice.service.OrderService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
+import com.stripe.*;
+
+@CrossOrigin
 @RestController
 public class OrderController {
     
@@ -54,6 +51,24 @@ public class OrderController {
         return ResponseEntity.status(HttpStatus.OK).body(orderService.getDriverlessOrders());
     }
 
+    @GetMapping(value = "/rates/state/")
+    public ResponseEntity getAllTaxRates() {
+        try {
+            return ResponseEntity.ok().body(orderService.findAllTaxRates());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
+    @GetMapping(value = "/rates/state/{stateName}")
+    public ResponseEntity findTaxRateByStateName(@PathVariable String stateName) {
+        try {
+            return ResponseEntity.ok().body(orderService.findTaxRateByName(stateName));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(e.getMessage());
+        }
+    }
+
     @PutMapping(value = "/{userId}/orders/{orderId}")
     public ResponseEntity<OrderInformation> updateOrder(
         @PathVariable Integer userId, 
@@ -76,6 +91,21 @@ public class OrderController {
     throws OrderNotFoundException, UserMismatchException {
         return ResponseEntity.status(HttpStatus.OK).body(orderService.deleteOrder(userId, orderId));
     }
+
+    @GetMapping(value = "/restaurant/{restaurantId}/orders")
+    public ResponseEntity<List<OrderInformation>> getRestaurantOrders(@PathVariable Integer restaurantId) {
+        return ResponseEntity.status(HttpStatus.OK).body(orderService.getRestaurantOrders(restaurantId));
+    }
+
+    @PutMapping(value = "/restaurant/order/{orderId}")
+    public ResponseEntity cancelOrder(@PathVariable Integer orderId) {
+        try {
+            return ResponseEntity.ok().body(orderService.cancelOrder(orderId));
+        } catch (OrderNotFoundException orderNotFoundException) {
+            return ResponseEntity.badRequest().body(orderNotFoundException.getMessage());
+        }
+    }
+
 
     // Exception Handlers
 

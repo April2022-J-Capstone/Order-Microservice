@@ -8,22 +8,9 @@ import java.util.stream.Collectors;
 import javax.transaction.Transactional;
 
 import com.smoothstack.common.exceptions.*;
-import com.smoothstack.common.models.Discount;
-import com.smoothstack.common.models.Order;
-import com.smoothstack.common.models.OrderItem;
-import com.smoothstack.common.models.Restaurant;
-import com.smoothstack.common.models.User;
-import com.smoothstack.common.repositories.ActiveDriverRepository;
-import com.smoothstack.common.repositories.DiscountRepository;
-import com.smoothstack.common.repositories.MenuItemRepository;
-import com.smoothstack.common.repositories.OrderRepository;
-import com.smoothstack.common.repositories.RestaurantRepository;
-import com.smoothstack.common.repositories.UserRepository;
-import com.smoothstack.common.repositories.OrderItemRepository;
-import com.smoothstack.ordermicroservice.data.FrontEndOrderItem;
-import com.smoothstack.ordermicroservice.data.NewOrder;
-import com.smoothstack.ordermicroservice.data.NewOrderItem;
-import com.smoothstack.ordermicroservice.data.OrderInformation;
+import com.smoothstack.common.models.*;
+import com.smoothstack.common.repositories.*;
+import com.smoothstack.ordermicroservice.data.*;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -51,6 +38,12 @@ public class OrderService {
 
     @Autowired
     private OrderItemRepository orderItemRepo;
+
+    @Autowired
+    private LocationRepository locationRepo;
+
+    @Autowired
+    private StateRateRepository stateRateRepository;
 
     /**
      * Creates a new order.
@@ -119,6 +112,7 @@ public class OrderService {
         List<OrderInformation> processedOrders = new ArrayList<>();
         
         List<Order> orders = orderRepo.findAllByDriverIsNull();
+        orders = orders.stream().filter(o -> o.isEnabled()).filter(o -> o.getOrderStatus().equals("placed")).collect(Collectors.toList());
 
         if (orders != null && orders.size() > 0) {
             for (Order o: orders) {
@@ -241,6 +235,20 @@ public class OrderService {
         throw new OrderNotFoundException("No order with ID: " + orderId + " exists to be canceled.");
     }
 
+    @Transactional
+    public Boolean cancelOrder(Integer orderId) {
+        Boolean cancelled = false;
+        Optional<Order> orderOptional = orderRepo.findById(orderId);
+        if(orderOptional.isPresent()) {
+            orderOptional.get().setEnabled(false);
+            orderRepo.saveAndFlush(orderOptional.get());
+            cancelled = true;
+        } else {
+            throw new OrderNotFoundException("Order does not exist");
+        }
+        return cancelled;
+    }
+
     /**
      * Deletes order by orderId and userId.
      * 
@@ -268,7 +276,7 @@ public class OrderService {
      * @return A list of Order objects representing all of the given users orders.
      */
     @Transactional
-    private List<Order> getUserOrders(Integer userId) throws UserNotFoundException {
+    public List<Order> getUserOrders(Integer userId) throws UserNotFoundException {
         Optional<User> user = userRepo.findById(userId);
         if (user.isPresent()) {
             List<Order> orders = orderRepo.findAllByCustomer(user.get());
@@ -285,7 +293,7 @@ public class OrderService {
      * @return The updated order object.
      */
     @Transactional
-    private Order applyDataToOrder(NewOrder newOrder, Order orderToUpdate, Integer customerId) {
+    public Order applyDataToOrder(NewOrder newOrder, Order orderToUpdate, Integer customerId) {
         
         // This functionality is now disabled to allow for the implementation of drivers selecting orders from a list of orders without drivers.
         /*if(orderToUpdate.getDriver() == null) {
@@ -439,16 +447,28 @@ public class OrderService {
                 .map(r -> r.getName())
                 .collect(Collectors.toList())
             );
+            System.out.println("**********************************************");
+            System.out.println(info.getRestaurantNames());
+            System.out.println("**********************************************");
+
         }
         if (order.getDiscounts() != null) {
             info.setDiscounts(order.getDiscounts());
         }
+
+        if (order.getLocation() != null) {
+            info.setCustomerLocation(order.getLocation());
+        }
+
         if (order.getOrderItems() != null) {
             info.setItems(
                 order.getOrderItems().stream()
                 .map(o -> {
                     FrontEndOrderItem item = new FrontEndOrderItem();
+                    System.out.println(o.getMenuItems().getRestaurants().getName());
                     item.setId(o.getId());
+                    item.setRestaurantId(o.getMenuItems().getRestaurants().getId());
+                    item.setRestaurantName(o.getMenuItems().getRestaurants().getName());
                     item.setName(o.getMenuItems().getName());
                     item.setDescription(o.getMenuItems().getDescription());
                     item.setNotes(o.getNotes());
@@ -463,5 +483,27 @@ public class OrderService {
 
         return info;
 
+    }
+
+
+    @Transactional
+    public List<OrderInformation> getRestaurantOrders(Integer restaurantId) {
+        List<Order> allByRestaurants_id = orderRepo.findAllByRestaurants_Id(restaurantId);
+        List<OrderInformation> orderItems = allByRestaurants_id
+                .stream()
+                .filter(o -> o.isEnabled())
+                .map(o -> createFrontEndData(o))
+                .collect(Collectors.toList());
+        return orderItems;
+    }
+
+    @Transactional
+    public List<StateRate> findAllTaxRates() {
+        return stateRateRepository.findAll();
+    }
+
+    @Transactional
+    public StateRate findTaxRateByName(String name) {
+        return stateRateRepository.findByName(name);
     }
 }
